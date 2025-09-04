@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Iris ML Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --indigo:#4f46e5; --muted:#64748b; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:linear-gradient(180deg,#eef2ff 0%, #fff 40%); color:#0f172a; }
+    .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; box-shadow: 0 2px 16px rgb(0 0 0 / 6%); padding: 20px; }
+    h1 { margin:0 0 8px; font-size:28px; }
+    .sub { color:#64748b; margin:0 0 6px; }
+    .tiny { color:#94a3b8; font-size:12px; }
+    .grid { display:grid; gap:20px; }
+    @media (min-width: 860px){ .grid-2 { grid-template-columns: 1fr 1fr; } }
+    label { display:block; font-size:14px; color:#475569; margin-bottom:6px; }
+    input, select { width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:12px; outline:none; }
+    input:focus, select:focus { border-color:#c7d2fe; box-shadow:0 0 0 3px #e0e7ff; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; }
+    .btn { border:1px solid #e2e8f0; background:#fff; padding:8px 12px; border-radius:12px; cursor:pointer; font-size:14px; }
+    .btn:hover { background:#eef2ff; }
+    .btn.primary { background:var(--indigo); color:#fff; border-color:transparent; }
+    .btn.primary:hover { background:#4338ca; }
+    .err { color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; padding:8px 12px; border-radius:12px; font-size:14px; display:none; }
+    .muted { color:#64748b; font-size:14px; }
+    code { background:#f1f5f9; padding:2px 6px; border-radius:8px; }
+    .kv { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px dashed #e2e8f0; }
+    .kv:last-child { border-bottom:0; }
+    .pred { font-size:28px; font-weight:700; color:var(--indigo); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Iris ML Demo</h1>
+      <p class="sub">Logistic Regression &amp; K-Means via Flask</p>
+      <p class="tiny">Same-origin API: <code>/predict</code></p>
+    </header>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3 style="margin-top:0">Input Features</h3>
+        <div class="row" style="margin-bottom:10px">
+          <button class="btn" data-fill="setosa">Autofill Setosa</button>
+          <button class="btn" data-fill="versicolor">Autofill Versicolor</button>
+          <button class="btn" data-fill="virginica">Autofill Virginica</button>
+          <button class="btn" id="clearBtn">Clear</button>
+        </div>
+        <div class="grid" style="grid-template-columns:1fr 1fr;">
+          <div><label>Sepal Length</label><input id="sl" type="number" step="any" placeholder="5.1"></div>
+          <div><label>Sepal Width</label><input id="sw" type="number" step="any" placeholder="3.5"></div>
+          <div><label>Petal Length</label><input id="pl" type="number" step="any" placeholder="1.4"></div>
+          <div><label>Petal Width</label><input id="pw" type="number" step="any" placeholder="0.2"></div>
+        </div>
+        <div class="row" style="margin:14px 0">
+          <label style="margin:0; align-self:center;">Model</label>
+          <select id="model">
+            <option value="logreg">Logistic Regression</option>
+            <option value="kmeans">K-Means</option>
+          </select>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="predict">Predict</button>
+          <span id="status" class="muted"></span>
+        </div>
+        <div id="error" class="err"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">Result</h3>
+        <div id="noResult" class="muted">No prediction yet.</div>
+        <div id="result" style="display:none;">
+          <div class="kv"><span>Model</span><strong id="outModel"></strong></div>
+          <div style="margin:8px 0;">
+            <div class="muted">Features</div>
+            <code id="outFeatures"></code>
+          </div>
+          <div class="kv"><span>Prediction</span><span class="pred" id="outPrediction">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <h3 style="margin-top:0">Examples</h3>
+      <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));">
+        <div><b>setosa</b><div><code>[5.1, 3.5, 1.4, 0.2]</code></div></div>
+        <div><b>versicolor</b><div><code>[6.0, 2.9, 4.5, 1.5]</code></div></div>
+        <div><b>virginica</b><div><code>[6.3, 3.3, 6.0, 2.5]</code></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const EXAMPLES = {
+      setosa:     [5.1, 3.5, 1.4, 0.2],
+      versicolor: [6.0, 2.9, 4.5, 1.5],
+      virginica:  [6.3, 3.3, 6.0, 2.5],
+    };
+    const sl = document.getElementById('sl');
+    const sw = document.getElementById('sw');
+    const pl = document.getElementById('pl');
+    const pw = document.getElementById('pw');
+    const modelSel = document.getElementById('model');
+    const statusEl = document.getElementById('status');
+    const errEl = document.getElementById('error');
+    const noRes = document.getElementById('noResult');
+    const resBox = document.getElementById('result');
+    const outModel = document.getElementById('outModel');
+    const outFeatures = document.getElementById('outFeatures');
+    const outPrediction = document.getElementById('outPrediction');
+
+    function fill(a){ [sl.value, sw.value, pl.value, pw.value] = a.map(String); }
+    function setStatus(s){ statusEl.textContent = s; }
+    function showErr(m){ errEl.textContent = m; errEl.style.display = 'block'; }
+    function clearErr(){ errEl.style.display = 'none'; }
+    function showNoRes(){ resBox.style.display='none'; noRes.style.display='block'; }
+    function showRes(json){
+      noRes.style.display='none';
+      resBox.style.display='block';
+      outModel.textContent = json.model_type;
+      outFeatures.textContent = JSON.stringify(json.features);
+      outPrediction.textContent = String(json.prediction);
+    }
+
+    // Prefill setosa
+    fill(EXAMPLES.setosa);
+
+    // Autofill & clear
+    document.querySelectorAll('[data-fill]').forEach(btn=>{
+      btn.onclick = () => { fill(EXAMPLES[btn.dataset.fill]); clearErr(); setStatus(''); showNoRes(); }
+    });
+    document.getElementById('clearBtn').onclick = () => { [sl.value,sw.value,pl.value,pw.value] = ["","","",""]; clearErr(); setStatus(''); showNoRes(); }
+
+    // Predict
+    document.getElementById('predict').onclick = async () => {
+      clearErr(); setStatus('Predicting…'); showNoRes();
+      const vals = [sl,sw,pl,pw].map(x=>parseFloat(x.value));
+      if (vals.some(v => Number.isNaN(v))) { setStatus(''); showErr('All four features must be numbers.'); return; }
+
+      try {
+        const res = await fetch('/predict', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ model_type: modelSel.value, features: vals })
+        });
+        const json = await res.json().catch(()=>({error:'Invalid JSON'}));
+        if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+        showRes(json); setStatus('');
+      } catch (e) {
+        setStatus(''); showErr(e.message || String(e));
+      }
+    };
+  </script>
+</body>
+</html>

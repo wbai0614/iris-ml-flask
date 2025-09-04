@@ -1,17 +1,20 @@
-#Use official lightweight Python image
-FROM python:3.10-slim
+FROM python:3.11-slim
 
-#Set working directory inside container
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8080
+
 WORKDIR /app
 
-#Copy all files to container
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+ && pip install --no-cache-dir -r requirements.txt
+
 COPY . .
 
-#Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Run as non-root
+RUN useradd -u 10001 -m appuser
+USER appuser
 
-#Expose port 8080 (Cloud Run expects this)
 EXPOSE 8080
-
-#Run the app with Gunicorn server
-CMD ["gunicorn","-b","0.0.0.0:8080","app:app"]
+CMD ["bash","-lc","gunicorn -w 2 -k gthread -t 60 --bind 0.0.0.0:${PORT} app:app"]
