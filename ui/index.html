@@ -4,33 +4,43 @@
   <meta charset="utf-8" />
   <title>Iris ML Predictor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Iris flower prediction demo using Logistic Regression and K-Means on Cloud Run." />
+  <meta name="description" content="Iris prediction using Logistic Regression & K-Means. Deployed on Cloud Run." />
   <link rel="icon" href="/assets/logo.svg" />
   <link rel="stylesheet" href="/styles.css" />
+  <!-- Social cards -->
+  <meta property="og:title" content="Iris ML Predictor" />
+  <meta property="og:description" content="Try real-time predictions using Logistic Regression or K-Means." />
+  <meta property="og:type" content="website" />
 </head>
 <body>
   <div class="wrapper">
-    <header>
+    <header class="hdr">
       <div class="brand">
         <img src="/assets/logo.svg" class="logo" alt="" />
         <div>
           <h1 class="title">Iris ML Predictor</h1>
-          <p class="subtitle">Logistic Regression &amp; K-Means on Cloud Run</p>
+          <p class="subtitle">Logistic Regression &amp; K-Means • Cloud Run</p>
         </div>
       </div>
-      <div class="tiny" id="apiInfo">API: <code>/predict</code></div>
+      <div class="hdr-actions">
+        <span id="apiInfo" class="tiny"></span>
+        <button class="btn ghost" id="copyLinkBtn" aria-label="Copy shareable link">Share</button>
+      </div>
     </header>
 
-    <main class="grid grid-2" role="main">
+    <main class="grid grid-3" role="main">
       <!-- Form -->
       <section class="card" aria-labelledby="formTitle">
-        <h2 id="formTitle" class="h2">Prediction Form</h2>
+        <div class="card-head">
+          <h2 id="formTitle" class="h2">Prediction Form</h2>
+          <span class="muted tiny" id="modelHint" title="Choose model and enter 4 numeric features.">?</span>
+        </div>
 
         <div class="row mb-sm">
-          <button class="btn" data-fill="setosa" aria-label="Autofill Setosa example">Autofill Setosa</button>
-          <button class="btn" data-fill="versicolor" aria-label="Autofill Versicolor example">Autofill Versicolor</button>
-          <button class="btn" data-fill="virginica" aria-label="Autofill Virginica example">Autofill Virginica</button>
-          <button class="btn" id="clearBtn" aria-label="Clear fields">Clear</button>
+          <button class="btn" data-fill="setosa">Setosa</button>
+          <button class="btn" data-fill="versicolor">Versicolor</button>
+          <button class="btn" data-fill="virginica">Virginica</button>
+          <button class="btn" id="clearBtn">Clear</button>
         </div>
 
         <div class="inputs" aria-describedby="hint">
@@ -47,6 +57,10 @@
             <option value="logreg">Logistic Regression</option>
             <option value="kmeans">K-Means</option>
           </select>
+          <label class="switch tiny" title="Keep the last N results on this device">
+            <input type="checkbox" id="keepHistory" checked />
+            <span>Save to history</span>
+          </label>
         </div>
 
         <div class="row mt-xs">
@@ -54,6 +68,7 @@
             Predict
             <span id="spinner" class="spinner" hidden></span>
           </button>
+          <button class="btn" id="cancelBtn" hidden>Cancel</button>
           <span id="status" class="tiny" aria-live="polite"></span>
         </div>
 
@@ -61,28 +76,32 @@
       </section>
 
       <!-- Result -->
-      <aside class="card" aria-labelledby="resultTitle">
+      <section class="card" aria-labelledby="resultTitle">
         <h2 id="resultTitle" class="h2">Result</h2>
         <p id="noResult" class="muted">No prediction yet. Use the form to run a prediction.</p>
 
         <div id="resultBox" hidden>
           <div class="kv"><span>Model</span><strong id="outModel" class="badge">—</strong></div>
-          <div class="mt-xs">
-            <div class="muted">Features</div>
+          <div class="kv mt-xs"><span>Prediction</span><span id="outPrediction" class="pred">—</span></div>
+          <p id="outLabelWrap" class="tiny mt-xs" hidden>Class label: <strong id="outLabel"></strong></p>
+          <details class="mt-xs">
+            <summary class="tiny">Show input features</summary>
             <code id="outFeatures" class="wrap"></code>
-          </div>
-          <div class="kv mt-xs">
-            <span>Prediction</span>
-            <span id="outPrediction" class="pred">—</span>
-          </div>
-          <p id="outLabelWrap" class="tiny mt-xs" hidden>
-            Class label: <strong id="outLabel"></strong>
-          </p>
+          </details>
         </div>
+      </section>
+
+      <!-- History & Mini Chart -->
+      <aside class="card" aria-labelledby="histTitle">
+        <h2 id="histTitle" class="h2">History</h2>
+        <p class="tiny muted">Last <span id="histCount">0</span> predictions (stored locally)</p>
+        <ul id="history" class="history"></ul>
+
+        <h3 class="h3 mt-sm">Model Mix</h3>
+        <canvas id="modelChart" width="340" height="160" aria-label="Model usage chart"></canvas>
       </aside>
     </main>
 
-    <!-- Examples -->
     <section class="card mt-md" aria-labelledby="exTitle">
       <h2 id="exTitle" class="h2">Examples</h2>
       <div class="grid tri">
@@ -92,7 +111,7 @@
       </div>
     </section>
 
-    <footer>© <span id="year"></span> Iris ML Demo • Served from Cloud Run</footer>
+    <footer>© <span id="year"></span> Iris ML Demo • <span id="serviceUrl">Cloud Run</span></footer>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

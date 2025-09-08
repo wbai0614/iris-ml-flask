@@ -1,7 +1,22 @@
+#VCS & OS noise
 .git
+.gitignore
+.DS_Store
+
+#Python caches / virtualenvs
 __pycache__/
 *.pyc
-.DS_Store
+*.pyo
+*.pyd
+*.egg-info/
 .venv
-venv
-node_modules
+venv/
+
+#Node (if you ever add tooling)
+node_modules/
+
+#Logs / artifacts
+*.log
+
+#IMPORTANT: Do NOT ignore models/*.pkl
+#(They are required inside the image for predictions)
