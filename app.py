@@ -6,49 +6,36 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# -----------------------------
-# App metadata
-# -----------------------------
 APP_NAME = "iris-ml-flask"
-APP_VERSION = os.environ.get("APP_VERSION", "v1")  # set at build/deploy if you want
+APP_VERSION = os.environ.get("APP_VERSION", "v1")
 START_TIME = datetime.utcnow().isoformat() + "Z"
 
-# -----------------------------
-# Load models once at startup
-# -----------------------------
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
 
 with open(os.path.join(MODEL_DIR, "logistic_model.pkl"), "rb") as f:
     logistic_model = pickle.load(f)
 
 with open(os.path.join(MODEL_DIR, "kmeans_model.pkl"), "rb") as f:
-    kmeans_model = pickle.load(f)
+    kmeans_obj = pickle.load(f)
 
-# Optional: map numeric classes to labels
+# Support both old and new formats
+if isinstance(kmeans_obj, dict) and "pipeline" in kmeans_obj and "mapping" in kmeans_obj:
+    kmeans_pipeline = kmeans_obj["pipeline"]
+    kmeans_mapping = kmeans_obj["mapping"]  # dict: cluster_id -> class_id
+else:
+    kmeans_pipeline = kmeans_obj  # legacy
+    kmeans_mapping = None
+
 SPECIES = {0: "Setosa", 1: "Versicolor", 2: "Virginica"}
 
-# -----------------------------
-# Health & Version
-# -----------------------------
 @app.route("/api/healthz", methods=["GET"])
 def healthz():
-    return jsonify({
-        "status": "ok",
-        "app": APP_NAME,
-        "version": APP_VERSION,
-        "started": START_TIME
-    }), 200
+    return jsonify({"status": "ok", "app": APP_NAME, "version": APP_VERSION, "started": START_TIME}), 200
 
 @app.route("/api/version", methods=["GET"])
 def version():
-    return jsonify({
-        "app": APP_NAME,
-        "version": APP_VERSION
-    }), 200
+    return jsonify({"app": APP_NAME, "version": APP_VERSION}), 200
 
-# -----------------------------
-# Prediction API
-# -----------------------------
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
@@ -59,7 +46,6 @@ def predict():
         if not model_type or features is None:
             return jsonify({"error": "model_type and features are required"}), 400
 
-        # Expect 4 Iris features
         try:
             X = np.array(features, dtype=float).reshape(1, -1)
         except Exception:
@@ -70,32 +56,33 @@ def predict():
 
         if model_type == "logreg":
             pred = int(logistic_model.predict(X)[0])
+
         elif model_type == "kmeans":
-            pred = int(kmeans_model.predict(X)[0])
+            cluster = int(kmeans_pipeline.predict(X)[0])
+            if kmeans_mapping is not None:
+                pred = int(kmeans_mapping.get(cluster, cluster))
+            else:
+                # Legacy: cluster labels will be arbitrary 0..2 (may not match species IDs)
+                pred = cluster
+
         else:
             return jsonify({"error": "Invalid model_type. Use 'logreg' or 'kmeans'."}), 400
 
-        resp = {
+        return jsonify({
             "model_type": model_type,
             "features": features,
             "prediction": pred,
             "label": SPECIES.get(pred, str(pred))
-        }
-        return jsonify(resp), 200
+        }), 200
 
     except Exception as e:
-        # For demo: return the error. In production, log internally and return a generic message.
         return jsonify({"error": str(e)}), 500
 
-# -----------------------------
-# Static UI @ /
-# -----------------------------
 UI_DIR = os.path.join(os.path.dirname(__file__), "ui")
 
 def _send_with_cache(dirpath: str, filename: str, cache_seconds: int = 3600):
-    """Serve a file with Cache-Control (no-cache for index.html)."""
     resp = make_response(send_from_directory(dirpath, filename))
-    if filename == "index.html":
+    if filename.endswith((".html", ".js", ".css")):
         resp.headers["Cache-Control"] = "no-cache"
     else:
         resp.headers["Cache-Control"] = f"public, max-age={cache_seconds}"
@@ -110,21 +97,14 @@ def index():
 
 @app.route("/<path:path>", methods=["GET"])
 def ui_assets(path):
-    # Prevent directory traversal; only serve files under ./ui
     abs_ui = os.path.abspath(UI_DIR)
     abs_req = os.path.abspath(os.path.join(UI_DIR, path))
     if not abs_req.startswith(abs_ui + os.sep) and abs_req != abs_ui:
         return jsonify({"error": "Invalid path"}), 400
     if os.path.exists(abs_req) and os.path.isfile(abs_req):
-        # Long cache for static assets (CSS/JS/images)
         return _send_with_cache(UI_DIR, path, cache_seconds=86400)
     return jsonify({"error": "Asset not found"}), 404
 
-# -----------------------------
-# Local dev entrypoint
-# (Cloud Run uses Gunicorn via Docker CMD)
-# -----------------------------
 if __name__ == "__main__":
-    # Run locally: python app.py
     port = int(os.environ.get("PORT", "8080"))
     app.run(host="0.0.0.0", port=port, debug=True)

@@ -6,25 +6,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Iris prediction using Logistic Regression & K-Means. Deployed on Cloud Run." />
   <link rel="icon" href="/assets/logo.svg" />
-  <link rel="stylesheet" href="/styles.css" />
-  <!-- Social cards -->
-  <meta property="og:title" content="Iris ML Predictor" />
-  <meta property="og:description" content="Try real-time predictions using Logistic Regression or K-Means." />
-  <meta property="og:type" content="website" />
+  <link rel="stylesheet" href="/styles.css?v=fix2" />
 </head>
 <body>
   <div class="wrapper">
     <header class="hdr">
       <div class="brand">
-        <img src="/assets/logo.svg" class="logo" alt="" />
+        <img src="/assets/logo.svg" class="logo" alt="Iris app logo" />
         <div>
           <h1 class="title">Iris ML Predictor</h1>
           <p class="subtitle">Logistic Regression &amp; K-Means • Cloud Run</p>
         </div>
       </div>
       <div class="hdr-actions">
-        <span id="apiInfo" class="tiny"></span>
-        <button class="btn ghost" id="copyLinkBtn" aria-label="Copy shareable link">Share</button>
+        <span class="tiny">Health: <strong id="healthDot" aria-live="polite">…</strong></span>
       </div>
     </header>
 
@@ -33,21 +28,32 @@
       <section class="card" aria-labelledby="formTitle">
         <div class="card-head">
           <h2 id="formTitle" class="h2">Prediction Form</h2>
-          <span class="muted tiny" id="modelHint" title="Choose model and enter 4 numeric features.">?</span>
         </div>
 
         <div class="row mb-sm">
-          <button class="btn" data-fill="setosa">Setosa</button>
-          <button class="btn" data-fill="versicolor">Versicolor</button>
-          <button class="btn" data-fill="virginica">Virginica</button>
-          <button class="btn" id="clearBtn">Clear</button>
+          <button class="btn" type="button" onclick="document.getElementById('sl').value='5.1';document.getElementById('sw').value='3.5';document.getElementById('pl').value='1.4';document.getElementById('pw').value='0.2'">Setosa</button>
+          <button class="btn" type="button" onclick="document.getElementById('sl').value='6.0';document.getElementById('sw').value='2.9';document.getElementById('pl').value='4.5';document.getElementById('pw').value='1.5'">Versicolor</button>
+          <button class="btn" type="button" onclick="document.getElementById('sl').value='6.3';document.getElementById('sw').value='3.3';document.getElementById('pl').value='6.0';document.getElementById('pw').value='2.5'">Virginica</button>
+          <button class="btn" type="button" onclick="['sl','sw','pl','pw'].forEach(id=>document.getElementById(id).value='')">Clear</button>
         </div>
 
         <div class="inputs" aria-describedby="hint">
-          <div><label for="sl">Sepal Length</label><input id="sl" inputmode="decimal" type="number" step="any" placeholder="5.1" required></div>
-          <div><label for="sw">Sepal Width</label><input id="sw" inputmode="decimal" type="number" step="any" placeholder="3.5" required></div>
-          <div><label for="pl">Petal Length</label><input id="pl" inputmode="decimal" type="number" step="any" placeholder="1.4" required></div>
-          <div><label for="pw">Petal Width</label><input id="pw" inputmode="decimal" type="number" step="any" placeholder="0.2" required></div>
+          <div>
+            <label for="sl">Sepal Length</label>
+            <input id="sl" inputmode="decimal" type="number" step="any" placeholder="5.1" />
+          </div>
+          <div>
+            <label for="sw">Sepal Width</label>
+            <input id="sw" inputmode="decimal" type="number" step="any" placeholder="3.5" />
+          </div>
+          <div>
+            <label for="pl">Petal Length</label>
+            <input id="pl" inputmode="decimal" type="number" step="any" placeholder="1.4" />
+          </div>
+          <div>
+            <label for="pw">Petal Width</label>
+            <input id="pw" inputmode="decimal" type="number" step="any" placeholder="0.2" />
+          </div>
         </div>
         <p id="hint" class="tiny mt-xs">Enter four numeric features for the Iris sample.</p>
 
@@ -55,20 +61,15 @@
           <label for="model" class="m-0">Model</label>
           <select id="model" aria-label="Model selection">
             <option value="logreg">Logistic Regression</option>
-            <option value="kmeans">K-Means</option>
+            <option value="kmeans" selected>K-Means</option>
           </select>
-          <label class="switch tiny" title="Keep the last N results on this device">
-            <input type="checkbox" id="keepHistory" checked />
-            <span>Save to history</span>
-          </label>
         </div>
 
         <div class="row mt-xs">
-          <button class="btn primary" id="predictBtn">
+          <button class="btn primary" id="predictBtn" type="button">
             Predict
             <span id="spinner" class="spinner" hidden></span>
           </button>
-          <button class="btn" id="cancelBtn" hidden>Cancel</button>
           <span id="status" class="tiny" aria-live="polite"></span>
         </div>
 
@@ -91,30 +92,22 @@
         </div>
       </section>
 
-      <!-- History & Mini Chart -->
-      <aside class="card" aria-labelledby="histTitle">
-        <h2 id="histTitle" class="h2">History</h2>
-        <p class="tiny muted">Last <span id="histCount">0</span> predictions (stored locally)</p>
-        <ul id="history" class="history"></ul>
-
-        <h3 class="h3 mt-sm">Model Mix</h3>
-        <canvas id="modelChart" width="340" height="160" aria-label="Model usage chart"></canvas>
+      <!-- Examples -->
+      <aside class="card" aria-labelledby="exTitle">
+        <h2 id="exTitle" class="h2">Examples</h2>
+        <div class="grid tri">
+          <div><strong>Setosa</strong><div><code>[5.1, 3.5, 1.4, 0.2]</code></div></div>
+          <div><strong>Versicolor</strong><div><code>[6.0, 2.9, 4.5, 1.5]</code></div></div>
+          <div><strong>Virginica</strong><div><code>[6.3, 3.3, 6.0, 2.5]</code></div></div>
+        </div>
       </aside>
     </main>
 
-    <section class="card mt-md" aria-labelledby="exTitle">
-      <h2 id="exTitle" class="h2">Examples</h2>
-      <div class="grid tri">
-        <div><strong>Setosa</strong><div><code>[5.1, 3.5, 1.4, 0.2]</code></div></div>
-        <div><strong>Versicolor</strong><div><code>[6.0, 2.9, 4.5, 1.5]</code></div></div>
-        <div><strong>Virginica</strong><div><code>[6.3, 3.3, 6.0, 2.5]</code></div></div>
-      </div>
-    </section>
-
-    <footer>© <span id="year"></span> Iris ML Demo • <span id="serviceUrl">Cloud Run</span></footer>
+    <footer>
+      © <span id="year"></span> Iris ML Demo • <span id="footVersion">v?</span>
+    </footer>
   </div>
 
-  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <script src="/app.js"></script>
+  <script src="/app.js?v=fix2"></script>
 </body>
 </html>
